@@ -1,10 +1,13 @@
 package moon.cache.autoconfigure;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import lombok.Getter;
 import lombok.Setter;
-import org.apache.commons.lang3.StringUtils;
+import moon.cache.common.consts.NumConst;
+import moon.cache.config.CacheConfig;
+import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
@@ -14,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * mcache配置
@@ -124,18 +128,17 @@ public class CacheProperties {
      *
      * @return 本地缓存配置List
      */
-    public ConcurrentHashMap<String, CacheConfig> getLocalCacheConfigList() {
+    public ConcurrentMap<String, CacheConfig> getLocalCacheConfigList() {
         if (StringUtils.isEmpty(localDomainsConfig)) {
             return null;
         }
 
-        JSONObject jsonObject = JSONObject.parseObject(localDomainsConfig);
-        String conf = jsonObject.getObject("data", String.class);
+        String conf = JSON.parseObject(localDomainsConfig, String.class);
         if (StringUtils.isEmpty(conf)) {
             return null;
         }
-        List<CacheConfig> configList = JSONArray.parseArray(conf, CacheConfig.class);
-        ConcurrentHashMap<String, CacheConfig> localCacheConfigMap = new ConcurrentHashMap<>(NumConst.NUMBER_16);
+        List<CacheConfig> configList = JSON.parseArray(conf, CacheConfig.class);
+        ConcurrentHashMap<String, CacheConfig> localCacheConfigMap = new ConcurrentHashMap<>(NumConst.NUM_16);
         if (!CollectionUtils.isEmpty(configList)) {
             for (CacheConfig cacheConfig : configList) {
                 localCacheConfigMap.put(cacheConfig.getDomain(), cacheConfig);

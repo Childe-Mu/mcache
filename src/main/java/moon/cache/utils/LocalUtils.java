@@ -1,7 +1,7 @@
 package moon.cache.utils;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang.StringUtils;
 
 import java.net.InetAddress;
 import java.net.NetworkInterface;

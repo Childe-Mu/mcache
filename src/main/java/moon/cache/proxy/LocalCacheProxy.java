@@ -10,12 +10,12 @@ import moon.cache.autoconfigure.CacheProperties;
  */
 public class LocalCacheProxy {
 
-    private CacheProperties properties;
+    private final CacheProperties properties;
 
     /**
      * 本地缓存
      */
-    private LocalCacheInstance localCache;
+    private final LocalCacheInstance localCache;
 
     public LocalCacheProxy(CacheProperties properties) {
         this.properties = properties;

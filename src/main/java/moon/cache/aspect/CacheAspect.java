@@ -6,11 +6,13 @@ import moon.cache.annotation.Cache;
 import moon.cache.annotation.CacheEvict;
 import moon.cache.autoconfigure.CacheProperties;
 import moon.cache.common.consts.NumConst;
+import moon.cache.common.exception.CacheException;
 import moon.cache.limit.ThroughLimitService;
 import moon.cache.proxy.LocalCacheProxy;
 import moon.cache.proxy.RedisCacheProxy;
 import moon.cache.utils.AspectUtils;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang.StringUtils;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.After;
@@ -28,6 +30,7 @@ import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.transaction.support.TransactionSynchronizationAdapter;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.Assert;
+import sun.awt.windows.ThemeReader;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -50,9 +53,24 @@ import java.util.stream.Collectors;
 public class CacheAspect {
 
     /**
+     * 默认domain
+     */
+    private static final String DEFAULT_DOMAIN_NAME = "DEFAULT";
+
+    /**
+     * null值最大范围
+     */
+    private static final Integer NULL_VALUE_MAX = 10;
+
+    /**
+     * null值后缀
+     */
+    private static final String NULL_VALUE_SUFFIX = "_NULL";
+
+    /**
      * 配置
      */
-    private CacheProperties properties;
+    private final CacheProperties properties;
 
     /**
      * Spring EL表达式解析器
@@ -63,6 +81,12 @@ public class CacheAspect {
      * 获取方法参数
      */
     private final LocalVariableTableParameterNameDiscoverer discoverer = new LocalVariableTableParameterNameDiscoverer();
+
+    /***
+     * 缓存参数名称
+     */
+    private final Map<String, String[]> parameterNamesCache = new ConcurrentHashMap<>();
+    private final Map<String, String> methodAndParamCache = new ConcurrentHashMap<>();
 
     /**
      * redis缓存代理
@@ -81,27 +105,6 @@ public class CacheAspect {
      */
     @Autowired
     private ThroughLimitService throughLimitService;
-
-    /***
-     * 缓存参数名称
-     */
-    private final Map<String, String[]> parameterNamesCache = new ConcurrentHashMap<>();
-    private final Map<String, String> methodAndParamCache = new ConcurrentHashMap<>();
-
-    /**
-     * 默认domain
-     */
-    private static final String DEFAULT_DOMAIN_NAME = "DEFAULT";
-
-    /**
-     * null值最大范围
-     */
-    private static final Integer NULL_VALUE_MAX = 10;
-
-    /**
-     * null值后缀
-     */
-    private static final String NULL_VALUE_SUFFIX = "_NULL";
 
     public CacheAspect(CacheProperties properties) {
         this.properties = properties;
@@ -126,8 +129,9 @@ public class CacheAspect {
     /**
      * 缓存结果集环绕逻辑
      *
-     * @return
-     * @throws Throwable
+     * @param joinPoint 连接点
+     * @return 执行结果
+     * @throws Throwable 异常信息
      */
     @Around("cacheAspect()")
     public Object cache(ProceedingJoinPoint joinPoint) throws Throwable {
@@ -141,7 +145,6 @@ public class CacheAspect {
             MethodSignature methodSignature = (MethodSignature) joinPoint.getSignature();
             Method method = methodSignature.getMethod();
             Cache annotation = getCacheAnnotation(method);
-            Assert.notNull(annotation, "moon.cache.aspect.CacheAspect.cache() 获取注解失败！");
             String domain = annotation.domain();
 
             // 获取缓存的key
@@ -205,7 +208,7 @@ public class CacheAspect {
      * 清除缓存结果集后置逻辑
      */
     @After("cacheEvictAspect()")
-    public void cacheEvict(ProceedingJoinPoint joinPoint) {
+    public void cacheEvict(JoinPoint joinPoint) {
         log.info("cacheEvict_enabled={}", properties.getEnabled());
         if (!properties.getEnabled()) {
             return;
@@ -213,20 +216,17 @@ public class CacheAspect {
         String redisKey = null;
         try {
             Method method = getMethod(joinPoint);
-            List<CacheEvict> annotations = getCacheEvictAnnotations(method);
-            if (annotations == null || annotations.isEmpty()) {
-                return;
-            }
             CacheEvict annotation = getCacheEvictAnnotation(method);
             Assert.notNull(annotation, "moon.cache.aspect.CacheAspect.cacheEvict() 获取注解失败！");
             String domain = annotation.domain();
             boolean evictAfterTranCommit = annotation.evictAfterTranCommit();
             redisKey = getCacheEvictKey(annotation, joinPoint);
 
-            //如果事务后清除，且当前事务开启
+            // 如果事务后清除，且当前事务开启
             if (evictAfterTranCommit && TransactionSynchronizationManager.isSynchronizationActive()) {
                 final String finalRedisKey = redisKey;
                 final String finalDomain = domain;
+                // 为当前线程注册一个新的事务同步，通常由资源管理代码调用。
                 TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
                     @Override
                     public void afterCommit() {
@@ -265,7 +265,7 @@ public class CacheAspect {
      * @param joinPoint  连接点
      * @return 缓存的key
      */
-    private String getCacheEvictKey(CacheEvict cacheEvict, ProceedingJoinPoint joinPoint) {
+    private String getCacheEvictKey(CacheEvict cacheEvict, JoinPoint joinPoint) {
         String domain = cacheEvict.domain();
         String[] keyTemplate = cacheEvict.keys();
         String[] keys = executeTemplate(keyTemplate, joinPoint);
@@ -285,6 +285,10 @@ public class CacheAspect {
         // 参数名称数组
         Function<String, String[]> function = o -> discoverer.getParameterNames(getMethod(joinPoint));
         String[] parameterNames = parameterNamesCache.computeIfAbsent(methodLongName, function);
+        if (ArrayUtils.isEmpty(parameterNames)) {
+            log.error("找不到方法对应的参数列表");
+            throw new CacheException("找不到方法对应的参数列表");
+        }
         // SpEL 的标准计算上下文
         StandardEvaluationContext context = new StandardEvaluationContext();
         // 获取对应的参数
@@ -324,7 +328,7 @@ public class CacheAspect {
                 return method;
             }
         }
-        return null;
+        throw new CacheException("找不到连接点的方法");
     }
 
     /**
@@ -337,8 +341,8 @@ public class CacheAspect {
         try {
             return method.getAnnotation(Cache.class);
         } catch (Exception e) {
-            log.error("getLock from method ex:", e);
-            return null;
+            log.error("getCacheAnnotation from method ex:", e);
+            throw new CacheException("getCacheAnnotation from method fail");
         }
     }
 
@@ -353,8 +357,8 @@ public class CacheAspect {
         try {
             return method.getAnnotation(CacheEvict.class);
         } catch (Exception e) {
-            log.error("getLock from method ex:", e);
-            return null;
+            log.error("getCacheEvictAnnotation from method ex:", e);
+            throw new CacheException("getCacheEvictAnnotation from method fail");
         }
     }
 

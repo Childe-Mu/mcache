@@ -1,7 +1,7 @@
 package moon.cache.common.exception;
 
 /**
- * 锁异常类
+ * 缓存异常类
  *
  * @author moon
  */

@@ -30,8 +30,9 @@ public @interface CacheEvict {
     String[] keys() default {};
 
     /**
+     * 是否在事务提交后清除缓存
      *
-     * @return
+     * @return 是否在事务提交后清除缓存，true：是，false：否
      */
     boolean evictAfterTranCommit() default false;
 

@@ -3,10 +3,13 @@ package moon.cache.proxy;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
+import moon.cache.common.consts.NumConst;
+import moon.cache.config.CacheConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -40,11 +43,11 @@ public class LocalCacheInstance {
     /**
      * 缓存配置
      */
-    private ConcurrentHashMap<String, CacheConfig> localCacheConfigMap;
+    private ConcurrentMap<String, CacheConfig> localCacheConfigMap;
 
     private static volatile LocalCacheInstance instance;
 
-    private LocalCacheInstance(ConcurrentHashMap<String, CacheConfig> localCacheConfigMap) {
+    private LocalCacheInstance(ConcurrentMap<String, CacheConfig> localCacheConfigMap) {
         this.localCacheConfigMap = localCacheConfigMap;
         if (this.localCacheConfigMap == null) {
             this.localCacheConfigMap = new ConcurrentHashMap<>();
@@ -52,7 +55,7 @@ public class LocalCacheInstance {
         this.localCacheConfigMap.put(DEFAULT_DOMAIN_NAME, new CacheConfig(DEFAULT_DOMAIN_NAME, DEFAULT_EXPIREAFTERWRITE, DEFAULT_MAXSIZE));
     }
 
-    public static LocalCacheInstance getInstance(ConcurrentHashMap<String, CacheConfig> localCacheConfigMap) {
+    public static LocalCacheInstance getInstance(ConcurrentMap<String, CacheConfig> localCacheConfigMap) {
         if (instance == null) {
             synchronized (LocalCacheInstance.class) {
                 if (instance == null) {
@@ -175,16 +178,16 @@ public class LocalCacheInstance {
                 } else {
                     Caffeine<Object, Object> cacheBuilder = Caffeine.newBuilder();
                     CacheConfig cacheConfig = localCacheConfigMap.get(domain);
-                    Integer maxSize = cacheConfig == null ? DEFAULT_MAXSIZE : cacheConfig.getMaxSize();
-                    Integer expireAfterWrite = cacheConfig == null ? DEFAULT_EXPIREAFTERWRITE : cacheConfig.getExpireAfterWrite();
+                    int maxSize = cacheConfig == null ? DEFAULT_MAXSIZE : cacheConfig.getMaxSize();
+                    int expireAfterWrite = cacheConfig == null ? DEFAULT_EXPIREAFTERWRITE : cacheConfig.getExpireAfterWrite();
                     LOGGER.debug("getCache domain={} expireAfterWrite={} maxSize={}", domain, expireAfterWrite, maxSize);
                     //设置缓存最大容量
-                    if (maxSize > NumConst.NUMBER_0) {
-                        cacheBuilder = cacheBuilder.maximumSize(maxSize);
+                    if (maxSize > NumConst.NUM_0) {
+                        cacheBuilder.maximumSize(maxSize);
                     }
                     //设置缓存写后过期时间
-                    if (expireAfterWrite > NumConst.NUMBER_0) {
-                        cacheBuilder = cacheBuilder.expireAfterWrite(expireAfterWrite, TimeUnit.SECONDS);
+                    if (expireAfterWrite > NumConst.NUM_0) {
+                        cacheBuilder.expireAfterWrite(expireAfterWrite, TimeUnit.SECONDS);
                     }
                     //待补充统计缓存命中率
                     //缓存移除通知

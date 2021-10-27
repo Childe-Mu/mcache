@@ -2,11 +2,12 @@ package moon.cache.autoconfigure;
 
 import lombok.extern.slf4j.Slf4j;
 import moon.cache.aspect.CacheAspect;
+import moon.cache.common.exception.CacheException;
 import moon.cache.limit.ThroughLimitService;
 import moon.cache.proxy.LocalCacheProxy;
 import moon.cache.proxy.RedisCacheProxy;
 import moon.cache.proxy.RedisDeleteKeyListener;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,6 +21,7 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+import tech.joymo.framework.redis.sserializer.HessianSerializer;
 
 import javax.annotation.Resource;
 import java.util.List;
@@ -74,7 +76,7 @@ public class CacheAutoConfiguration {
         final String redisGroup = this.getRedisGroup();
         if (StringUtils.isBlank(redisGroup)) {
             log.error("请检查mcahe的redis数据源名称是否配置");
-            throw new RuntimeException("请检查mcahe的redis数据源名称【mcahe.redis-group】是否配置");
+            throw new CacheException("请检查mcahe的redis数据源名称【mcahe.redis-group】是否配置");
         }
         //根据已有的redisTemplate的连接创建redisTemplate，架构redis默认为各个redis数据源创建了redisTemplate
         final String srcBeanName = redisGroup + "RedisTemplate";
@@ -88,7 +90,7 @@ public class CacheAutoConfiguration {
         RedisConnectionFactory factory = srcTemplate.getConnectionFactory();
         if (factory == null) {
             log.error("redisTemplateBeanName={}，redisTemplate.getConnectionFactory()为空", srcBeanName);
-            throw new RuntimeException("redisTemplate.getConnectionFactory()为空");
+            throw new CacheException("redisTemplate.getConnectionFactory()为空");
         }
         RedisTemplate<String, Object> targetTemplate = new RedisTemplate<>();
         targetTemplate.setConnectionFactory(factory);
