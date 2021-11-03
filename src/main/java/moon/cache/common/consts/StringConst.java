@@ -1,11 +1,14 @@
 package moon.cache.common.consts;
 
 /**
- * 常量类
+ * 字符串常量类
  *
  * @author moon
  */
 public class StringConst {
+    private StringConst() {
+    }
+
     /**
      * 字符 '_'
      */

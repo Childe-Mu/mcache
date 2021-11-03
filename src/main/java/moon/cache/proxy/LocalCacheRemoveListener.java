@@ -3,11 +3,12 @@ package moon.cache.proxy;
 import com.github.benmanes.caffeine.cache.RemovalCause;
 import com.github.benmanes.caffeine.cache.RemovalListener;
 import lombok.extern.slf4j.Slf4j;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
- * @description: 本地缓存移除通知监听器
- * @author: likejian
- * @date: 2019.02.01 13:49
+ * 本地缓存移除通知监听器
+ *
+ * @author moon
  */
 @Slf4j
 public class LocalCacheRemoveListener implements RemovalListener<String, Object> {
@@ -19,14 +20,14 @@ public class LocalCacheRemoveListener implements RemovalListener<String, Object>
     /**
      * 构造方法
      *
-     * @param domain domin名称
+     * @param domain domin
      */
     public LocalCacheRemoveListener(String domain) {
         this.domain = domain;
     }
 
     @Override
-    public void onRemoval(String s, Object o, RemovalCause removalCause) {
+    public void onRemoval(String s, Object o, @NonNull RemovalCause removalCause) {
         log.debug("缓存移除 domain={}, key={}", this.domain, s);
     }
 }

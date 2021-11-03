@@ -33,20 +33,15 @@ public class RedisCacheProxy {
     /**
      * 删除redis key回调监听
      */
-    private final List<RedisDeleteKeyListener> deleteKeyListenerList;
+    private final List<RedisDeleteKeyListener> deleteKeyListeners;
 
-    public RedisCacheProxy(CacheProperties properties, RedisTemplate<String, Object> cacheRedisTemplate) {
-        super();
+    public RedisCacheProxy(CacheProperties properties, RedisTemplate<String, Object> cacheRedisTemplate, List<RedisDeleteKeyListener> deleteKeyListenerList) {
         if (Objects.isNull(properties.getRedisEnabled())) {
             throw new CacheException("未配置mcache.redis.group值");
         }
         this.properties = properties;
         this.cacheRedisTemplate = cacheRedisTemplate;
-        this.deleteKeyListenerList = Lists.newArrayList();
-    }
-
-    private String key(String key) {
-        return key;
+        this.deleteKeyListeners = Lists.newArrayList();
     }
 
     /**
@@ -56,24 +51,23 @@ public class RedisCacheProxy {
      * @return Object
      */
     public Object get(String domain, String key) {
-        if (!isSwitchOn(domain)) {
-            return null;
+        if (properties.getRedisEnabled() && properties.getRedisCacheDomainSwitch(domain)) {
+            return cacheRedisTemplate.opsForValue().get(key);
         }
-        return cacheRedisTemplate.opsForValue().get(key(key));
+        return null;
     }
 
     /**
-     * redis存值
+     * redis保存值
      *
      * @param key     key
      * @param value   value
      * @param timeout timeout
      * @param unit    unit
-     * @param <K>     <K>
      * @param <V>     <V>
      */
-    public <K, V> void set(String key, V value, long timeout, TimeUnit unit) {
-        cacheRedisTemplate.opsForValue().set(key(key), value, timeout, unit);
+    public <V> void set(String key, V value, long timeout, TimeUnit unit) {
+        cacheRedisTemplate.opsForValue().set(key, value, timeout, unit);
     }
 
     /**
@@ -83,8 +77,8 @@ public class RedisCacheProxy {
      * @param key    redis key
      */
     public void delete(String domain, String key) {
-        cacheRedisTemplate.delete(key(key));
-        for (RedisDeleteKeyListener listener : deleteKeyListenerList) {
+        cacheRedisTemplate.delete(key);
+        for (RedisDeleteKeyListener listener : deleteKeyListeners) {
             try {
                 listener.onDelete(domain, key);
             } catch (Exception e) {
@@ -94,21 +88,11 @@ public class RedisCacheProxy {
     }
 
     /**
-     * 判断开关是否开启.
-     *
-     * @param domain domain
-     * @return boolean
-     */
-    private boolean isSwitchOn(String domain) {
-        return properties.getRedisEnabled() && properties.getRedisCacheDomainSwitch(domain);
-    }
-
-    /**
      * 增加删除redis key 监听
      *
      * @param deleteKeyListenerList 监听列表
      */
     public void addDeleteKeyListener(List<RedisDeleteKeyListener> deleteKeyListenerList) {
-        this.deleteKeyListenerList.addAll(deleteKeyListenerList);
+        this.deleteKeyListeners.addAll(deleteKeyListenerList);
     }
 }

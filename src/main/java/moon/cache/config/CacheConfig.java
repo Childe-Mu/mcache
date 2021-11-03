@@ -1,30 +1,29 @@
 package moon.cache.config;
 
+import lombok.Getter;
+
 /**
  * 缓存配置
  *
  * @author moon
  */
+@Getter
 public class CacheConfig {
 
     /**
      * domain
      */
-    private String domain;
+    private final String domain;
+
     /**
      * 缓存写后过期时间，单位(秒)
      */
-    private int expireAfterWrite;
+    private final int expireAfterWrite;
+
     /**
      * 缓存最大容量
      */
-    private int maxSize;
-
-    /**
-     * 默认无参构造方法
-     */
-    public CacheConfig() {
-    }
+    private final int maxSize;
 
     /**
      * 构造方法
@@ -37,29 +36,5 @@ public class CacheConfig {
         this.domain = domain;
         this.expireAfterWrite = expireAfterWrite;
         this.maxSize = maxSize;
-    }
-
-    public int getExpireAfterWrite() {
-        return expireAfterWrite;
-    }
-
-    public void setExpireAfterWrite(int expireAfterWrite) {
-        this.expireAfterWrite = expireAfterWrite;
-    }
-
-    public int getMaxSize() {
-        return maxSize;
-    }
-
-    public void setMaxSize(int maxSize) {
-        this.maxSize = maxSize;
-    }
-
-    public String getDomain() {
-        return domain;
-    }
-
-    public void setDomain(String domain) {
-        this.domain = domain;
     }
 }

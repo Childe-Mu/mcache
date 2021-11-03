@@ -1,8 +1,6 @@
 package moon.cache.autoconfigure;
 
 import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
 import lombok.Getter;
 import lombok.Setter;
 import moon.cache.common.consts.NumConst;
@@ -42,7 +40,7 @@ public class CacheProperties {
     private Boolean enabled;
 
     /**
-     * L2缓存-本地缓存开关
+     * L2缓存-本地缓存总开关
      */
     @Value("${${moon.application.name}.mcahe.local.switch:false}")
     private Boolean localEnabled;
@@ -66,7 +64,7 @@ public class CacheProperties {
     private String redisGroup;
 
     /**
-     * L2缓存-redis缓存开关
+     * L2缓存-redis缓存总开关
      */
     @Value("${${moon.application.name}.mcahe.redis.enabled:true}")
     private Boolean redisEnabled;

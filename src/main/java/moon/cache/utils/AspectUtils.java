@@ -1,10 +1,13 @@
 package moon.cache.utils;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * 切面工具类
  *
  * @author moon
  */
+@Slf4j
 public class AspectUtils {
     private AspectUtils() {
     }
@@ -35,6 +38,6 @@ public class AspectUtils {
     }
 
     public static void main(String[] args) {
-        System.out.println(getMethodNameAndParams("public static java.lang.String moon.mcache.utils.getMethodNameAndParams(java.lang.String)"));
+        log.debug(getMethodNameAndParams("public static java.lang.String moon.mcache.utils.getMethodNameAndParams(java.lang.String)"));
     }
 }

@@ -10,12 +10,12 @@ import moon.cache.autoconfigure.CacheProperties;
  */
 public class ThroughLimitService {
 
-    private CacheProperties properties;
+    private final CacheProperties properties;
 
     /**
      * RateLimiter
      */
-    private RateLimiter rateLimiter = null;
+    private RateLimiter rateLimiter;
 
     public ThroughLimitService(CacheProperties properties) {
         this.properties = properties;

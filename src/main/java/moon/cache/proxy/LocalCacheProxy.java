@@ -28,10 +28,9 @@ public class LocalCacheProxy {
      * @param domain domain
      * @param key    key
      * @return Object
-     * @throws Exception Exception
      */
-    public Object getValue(String domain, String key) throws Exception {
-        //本地缓存domain级别开关
+    public Object getValue(String domain, String key) {
+        // 本地缓存domain级别开关
         if (!properties.getLocalEnabled() || !properties.getLocalCacheDomainSwitch(domain)) {
             return null;
         }
@@ -44,9 +43,8 @@ public class LocalCacheProxy {
      * @param domain domain
      * @param key    key
      * @param value  value
-     * @throws Exception Exception
      */
-    public void putValue(String domain, String key, Object value) throws Exception {
+    public void putValue(String domain, String key, Object value) {
         if (properties.getLocalEnabled() && properties.getLocalCacheDomainSwitch(domain)) {
             localCache.putValue(domain, key, value);
         }

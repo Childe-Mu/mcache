@@ -7,14 +7,13 @@ import moon.cache.limit.ThroughLimitService;
 import moon.cache.proxy.LocalCacheProxy;
 import moon.cache.proxy.RedisCacheProxy;
 import moon.cache.proxy.RedisDeleteKeyListener;
+import moon.cache.utils.SpringUtils;
 import org.apache.commons.lang.StringUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -27,7 +26,8 @@ import javax.annotation.Resource;
 import java.util.List;
 
 /**
- * CacheAutoConfiguration
+ * 缓存自动配置类
+ *
  * @author moon
  */
 @Slf4j
@@ -38,9 +38,6 @@ public class CacheAutoConfiguration {
     @Resource
     private CacheProperties cacheProperties;
 
-    @Autowired
-    private ApplicationContext applicationContext;
-
     /**
      * 通用组件redis数据源配置，mcahe.redis-group未配置时生效
      */
@@ -50,9 +47,7 @@ public class CacheAutoConfiguration {
     @Bean
     public RedisCacheProxy redisCacheProxy(@Qualifier("cacheRedisTemplate") RedisTemplate<String, Object> cacheRedisTemplate,
                                            List<RedisDeleteKeyListener> deleteKeyListenerList) {
-        final RedisCacheProxy redisCacheProxy = new RedisCacheProxy(cacheProperties, cacheRedisTemplate);
-        redisCacheProxy.addDeleteKeyListener(deleteKeyListenerList);
-        return redisCacheProxy;
+        return new RedisCacheProxy(cacheProperties, cacheRedisTemplate, deleteKeyListenerList);
     }
 
     @Bean
@@ -82,9 +77,9 @@ public class CacheAutoConfiguration {
         final String srcBeanName = redisGroup + "RedisTemplate";
         final RedisTemplate srcTemplate;
         try {
-            srcTemplate = applicationContext.getBean(srcBeanName, RedisTemplate.class);
+            srcTemplate = SpringUtils.getBean(srcBeanName, RedisTemplate.class);
         } catch (Exception e) {
-            log.error("redisTemplateBeanName={}，获取bean实例失败",srcBeanName);
+            log.error("redisTemplateBeanName={}，获取bean实例失败", srcBeanName);
             throw e;
         }
         RedisConnectionFactory factory = srcTemplate.getConnectionFactory();

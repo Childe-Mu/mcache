@@ -1,11 +1,13 @@
 package moon.cache.common.consts;
 
 /**
- * @author likejian
- * @description 数值常量
- * @date 2019.01.26 15:27
+ * 数值常量
+ *
+ * @author moon
  */
 public class NumConst {
+    private NumConst() {
+    }
 
     /**
      * 数值常量 0
