@@ -29,6 +29,15 @@ public @interface Cache {
      */
     String[] keys() default {};
 
+
+    /**
+     * 缓存数据的类
+     * 必填
+     *
+     * @return 缓存数据的类
+     */
+    Class<?> clazz();
+
     /**
      * 过期时间 单位秒
      *

@@ -1,6 +1,8 @@
 package moon.cache.aspect;
 
+import com.alibaba.fastjson.JSON;
 import com.google.common.base.Joiner;
+import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 import moon.cache.annotation.Cache;
 import moon.cache.annotation.CacheEvict;
@@ -21,6 +23,7 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cglib.beans.BeanCopier;
 import org.springframework.core.LocalVariableTableParameterNameDiscoverer;
 import org.springframework.core.annotation.Order;
 import org.springframework.expression.Expression;
@@ -143,18 +146,19 @@ public class CacheAspect {
             // 切入点处的签名
             MethodSignature methodSignature = (MethodSignature) joinPoint.getSignature();
             Method method = methodSignature.getMethod();
-            Cache annotation = getCacheAnnotation(method);
-            String domain = annotation.domain();
+            Cache cache = getCacheAnnotation(method);
+            String domain = cache.domain();
 
             // 获取缓存的key
-            cacheKey = getCacheKey(annotation, joinPoint);
-            long ttl = annotation.ttl();
+            cacheKey = getCacheKey(cache, joinPoint);
+            long ttl = cache.ttl();
 
             // 一级缓存获取
             Object result = localCacheProxy.getValue(domain, cacheKey);
             if (Objects.nonNull(result)) {
                 log.info("[localCache hit] cacheKey={}", cacheKey);
-                return result;
+                // 进行bean copy，防止直接修改本地缓存
+                return copyResult(cache, result);
             }
 
             // 二级缓存获取
@@ -204,6 +208,26 @@ public class CacheAspect {
     }
 
     /**
+     * 复制结果，用于使用本地缓存的时候，以防外部逻辑直接修改缓存对象
+     *
+     * @param cache  缓存注解
+     * @param result 要复制的结果
+     * @return 复制后的对象
+     */
+    private Object copyResult(Cache cache, Object result) {
+        try {
+            Class<?> clazz = cache.clazz();
+            BeanCopier copier = BeanCopier.create(clazz, clazz, false);
+            Object copy = clazz.newInstance();
+            copier.copy(result, copy, null);
+            return copy;
+        } catch (InstantiationException | IllegalAccessException e) {
+            log.error("复制本地缓存结果异常:", e);
+            throw new CacheException("复制结果异常:", e);
+        }
+    }
+
+    /**
      * 清除缓存结果集后置逻辑
      */
     @After("cacheEvictAspect()")
@@ -242,6 +266,28 @@ public class CacheAspect {
         }
     }
 
+    public static void main(String[] args) {
+        BeanCopier copier = BeanCopier.create(A.class, A.class, false);
+        B b = new B();
+
+        b.setId(1);
+        b.setName("1");
+        A a = new A();
+        a.setId(1);
+        a.setB(Lists.newArrayList(b));
+        Class<A> clazz = A.class;
+        try {
+
+            Object c = a;
+            Object copy = clazz.newInstance();
+            copier.copy(c, copy, null);
+            log.info("{}", JSON.toJSONString(copy));
+        } catch (InstantiationException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        }
+    }
 
     /**
      * 获取缓存的key
