@@ -266,29 +266,6 @@ public class CacheAspect {
         }
     }
 
-    public static void main(String[] args) {
-        BeanCopier copier = BeanCopier.create(A.class, A.class, false);
-        B b = new B();
-
-        b.setId(1);
-        b.setName("1");
-        A a = new A();
-        a.setId(1);
-        a.setB(Lists.newArrayList(b));
-        Class<A> clazz = A.class;
-        try {
-
-            Object c = a;
-            Object copy = clazz.newInstance();
-            copier.copy(c, copy, null);
-            log.info("{}", JSON.toJSONString(copy));
-        } catch (InstantiationException e) {
-            e.printStackTrace();
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        }
-    }
-
     /**
      * 获取缓存的key
      *
