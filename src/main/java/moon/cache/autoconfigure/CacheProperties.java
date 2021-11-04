@@ -1,6 +1,7 @@
 package moon.cache.autoconfigure;
 
 import com.alibaba.fastjson.JSON;
+import com.google.common.collect.Maps;
 import lombok.Getter;
 import lombok.Setter;
 import moon.cache.common.consts.NumConst;
@@ -42,62 +43,56 @@ public class CacheProperties {
     /**
      * L2缓存-本地缓存总开关
      */
-    @Value("${${moon.application.name}.mcahe.local.switch:false}")
+    @Value("${${moon.application.name}.mcache.local.switch:false}")
     private Boolean localEnabled;
 
     /**
      * L2缓存-本地缓存按domain开关
      */
-    @Value("#{${${moon.application.name}.mcahe.local.domains.switch:new java.util.HashMap()}}")
+    @Value("#{${${moon.application.name}.mcache.local.domains.switch:new java.util.HashMap()}}")
     private Map<String, Boolean> localDomainsSwitch;
 
     /**
      * L2缓存-本地缓存domain配置
      */
-    @Value("${${moon.application.name}.mcahe.local.domains.config:}")
+    @Value("${${moon.application.name}.mcache.local.domains.config:}")
     private String localDomainsConfig;
 
     /**
      * L2缓存-redis缓存的group
      */
-    @Value("${${moon.application.name}.mcahe.redis.group:}")
+    @Value("${${moon.application.name}.mcache.redis.group:}")
     private String redisGroup;
 
     /**
      * L2缓存-redis缓存总开关
      */
-    @Value("${${moon.application.name}.mcahe.redis.enabled:true}")
+    @Value("${${moon.application.name}.mcache.redis.enabled:true}")
     private Boolean redisEnabled;
 
     /**
      * L2缓存-redis缓存按domain开关
      */
-    @Value("#{${${moon.application.name}.mcahe.redis.domains.switch:new java.util.HashMap()}}")
+    @Value("#{${${moon.application.name}.mcache.redis.domains.switch:new java.util.HashMap()}}")
     private Map<String, Boolean> redisDomainsSwitch;
 
     /**
      * L2缓存-缓存穿透限流开关，默认值关闭
      */
-    @Value("${${moon.application.name}.mcahe.through.limit.switch:false}")
+    @Value("${${moon.application.name}.mcache.through.limit.switch:false}")
     private Boolean throughLimitSwitch;
 
     /**
      * L2缓存-缓存穿透限流每秒许可数，默认值5
      */
-    @Value("${${moon.application.name}.mcahe.through.limit.permits.persecond:5}")
+    @Value("${${moon.application.name}.mcache.through.limit.permits.persecond:5}")
     private Integer throughLimitPermitsPerSecond;
 
     /**
-     * L2缓存-Zeus上报采样开关，false：全量上报，true：采样上报
+     * 本地redis降级后，重试的时间间隔，单位为分钟
      */
-    @Value("${${moon.application.name}.mcahe.zeus.sampling.report.switch:false}")
-    private Boolean zeusSamplingReportSwitch;
-    /**
-     * L2缓存-Zeus上报采样比例，取值：0-10，0：不上报，10：全部上报
-     */
-    @Value("${${moon.application.name}.mcahe.zeus.sampling.report.ratio:2}")
-    private Integer zeusSamplingReportRatio;
-
+    @Value("${${moon.application.name}.redis.local.retry.period:10}")
+    private Integer redisLocalRetryPeriod;
 
     /**
      * 获取redis缓存-domain开关
@@ -128,12 +123,12 @@ public class CacheProperties {
      */
     public ConcurrentMap<String, CacheConfig> getLocalCacheConfigList() {
         if (StringUtils.isEmpty(localDomainsConfig)) {
-            return null;
+            return Maps.newConcurrentMap();
         }
 
         String conf = JSON.parseObject(localDomainsConfig, String.class);
         if (StringUtils.isEmpty(conf)) {
-            return null;
+            return Maps.newConcurrentMap();
         }
         List<CacheConfig> configList = JSON.parseArray(conf, CacheConfig.class);
         ConcurrentHashMap<String, CacheConfig> localCacheConfigMap = new ConcurrentHashMap<>(NumConst.NUM_16);

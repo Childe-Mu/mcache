@@ -80,7 +80,7 @@ public class Car {
 
 Config.java
 
-```kotlin
+``` java
 @Configuration
 @ComponentScan("com.wuyue.annotation")
 public class Config {

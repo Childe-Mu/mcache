@@ -13,5 +13,5 @@ public interface RedisDeleteKeyListener {
      * @param domain domain名称
      * @param key    redis key
      */
-    void onDelete(String domain, String key);
+    void delete(String domain, String key);
 }

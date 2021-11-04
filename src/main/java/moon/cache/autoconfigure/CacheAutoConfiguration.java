@@ -32,14 +32,14 @@ import java.util.List;
  */
 @Slf4j
 @Configuration
-@ConditionalOnProperty(prefix = "mcahe", name = "enabled", havingValue = "true")
+@ConditionalOnProperty(prefix = "mcache", name = "enabled", havingValue = "true")
 @EnableConfigurationProperties(CacheProperties.class)
 public class CacheAutoConfiguration {
     @Resource
     private CacheProperties cacheProperties;
 
     /**
-     * 通用组件redis数据源配置，mcahe.redis-group未配置时生效
+     * 通用组件redis数据源配置，mcache.redis-group未配置时生效
      */
     @Value("${component.redis.cluster-name:}")
     private String componentRedisClusterName;
@@ -57,7 +57,7 @@ public class CacheAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(CacheAspect.class)
-    public CacheAspect l2CacheAspect() {
+    public CacheAspect cacheAspect() {
         return new CacheAspect(cacheProperties);
     }
 
@@ -70,8 +70,8 @@ public class CacheAutoConfiguration {
     public RedisTemplate<String, Object> cacheRedisTemplate() {
         final String redisGroup = this.getRedisGroup();
         if (StringUtils.isBlank(redisGroup)) {
-            log.error("请检查mcahe的redis数据源名称是否配置");
-            throw new CacheException("请检查mcahe的redis数据源名称【mcahe.redis-group】是否配置");
+            log.error("请检查mcache的redis数据源名称是否配置");
+            throw new CacheException("请检查mcache的redis数据源名称【mcache.redis-group】是否配置");
         }
         //根据已有的redisTemplate的连接创建redisTemplate，架构redis默认为各个redis数据源创建了redisTemplate
         final String srcBeanName = redisGroup + "RedisTemplate";

@@ -5,6 +5,7 @@ import moon.cache.autoconfigure.CacheProperties;
 
 /**
  * 缓存穿透限流服务
+ * （可以考虑使用Sentinal或者自己实现限流服务）
  *
  * @author moon
  */

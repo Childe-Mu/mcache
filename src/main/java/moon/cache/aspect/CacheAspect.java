@@ -1,8 +1,6 @@
 package moon.cache.aspect;
 
-import com.alibaba.fastjson.JSON;
 import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 import moon.cache.annotation.Cache;
 import moon.cache.annotation.CacheEvict;
@@ -12,9 +10,7 @@ import moon.cache.common.exception.CacheException;
 import moon.cache.limit.ThroughLimitService;
 import moon.cache.proxy.LocalCacheProxy;
 import moon.cache.proxy.RedisCacheProxy;
-import moon.cache.utils.AspectUtils;
 import org.apache.commons.lang.ArrayUtils;
-import org.apache.commons.lang.StringUtils;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.After;
@@ -35,14 +31,11 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.util.Assert;
 
 import java.lang.reflect.Method;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
  * 二级缓存AOP切入点.
@@ -88,7 +81,6 @@ public class CacheAspect {
      * 缓存参数名称
      */
     private final Map<String, String[]> parameterNamesCache = new ConcurrentHashMap<>();
-    private final Map<String, String> methodAndParamCache = new ConcurrentHashMap<>();
 
     /**
      * redis缓存代理
@@ -147,13 +139,13 @@ public class CacheAspect {
             MethodSignature methodSignature = (MethodSignature) joinPoint.getSignature();
             Method method = methodSignature.getMethod();
             Cache cache = getCacheAnnotation(method);
-            String domain = cache.domain();
 
             // 获取缓存的key
             cacheKey = getCacheKey(cache, joinPoint);
             long ttl = cache.ttl();
 
             // 一级缓存获取
+            String domain = cache.domain();
             Object result = localCacheProxy.getValue(domain, cacheKey);
             if (Objects.nonNull(result)) {
                 log.info("[localCache hit] cacheKey={}", cacheKey);
@@ -169,8 +161,6 @@ public class CacheAspect {
                 localCacheProxy.putValue(domain, cacheKey, result);
                 return result;
             }
-
-            // todo 加入本地缓存失效，redis链接失败的问题场景处理，这种情况下，直接穿透到DB
 
             // 一二级缓存都查不到，进行防穿透设置
             log.info("[redisCache miss] cacheKey={}", cacheKey);
@@ -192,7 +182,7 @@ public class CacheAspect {
             result = joinPoint.proceed();
             if (Objects.nonNull(result)) {
                 log.debug("[DB hit] {}", cacheKey);
-                redisCacheProxy.set(cacheKey, result, ttl, TimeUnit.SECONDS);
+                redisCacheProxy.set(domain, cacheKey, result, ttl, TimeUnit.SECONDS);
                 localCacheProxy.putValue(domain, cacheKey, result);
                 return result;
             }
@@ -204,6 +194,46 @@ public class CacheAspect {
         } catch (Exception e) {
             log.error("CacheAspect缓存异常, key={}", cacheKey, e);
             throw e;
+        }
+    }
+
+    /**
+     * 清除缓存结果集后置逻辑
+     */
+    @After("cacheEvictAspect()")
+    public void cacheEvict(JoinPoint joinPoint) {
+        log.info("cacheEvict_enabled={}", properties.getEnabled());
+        if (!properties.getEnabled()) {
+            return;
+        }
+        String redisKey = null;
+        try {
+            MethodSignature methodSignature = (MethodSignature) joinPoint.getSignature();
+            Method method = methodSignature.getMethod();
+            CacheEvict cacheEvict = getCacheEvictAnnotation(method);
+            Assert.notNull(cacheEvict, "moon.cache.aspect.CacheAspect.cacheEvict() 获取注解失败！");
+            String domain = cacheEvict.domain();
+            boolean evictAfterTranCommit = cacheEvict.evictAfterTranCommit();
+            redisKey = getCacheEvictKey(cacheEvict, joinPoint);
+
+            // 如果事务后清除，且当前事务开启
+            if (evictAfterTranCommit && TransactionSynchronizationManager.isSynchronizationActive()) {
+                final String finalRedisKey = redisKey;
+                final String finalDomain = domain;
+                // 为当前线程注册一个新的事务同步，通常由资源管理代码调用。
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
+                    @Override
+                    public void afterCommit() {
+                        log.debug("[redisCache delete] ,cacheKey:{}", finalRedisKey);
+                        redisCacheProxy.delete(finalDomain, finalRedisKey);
+                    }
+                });
+            } else {
+                log.debug("[redisCache delete] ,cacheKey:{}", redisKey);
+                redisCacheProxy.delete(domain, redisKey);
+            }
+        } catch (Exception e) {
+            log.error("CacheAspect清除缓存异常, cacheKey:{}", redisKey, e);
         }
     }
 
@@ -224,45 +254,6 @@ public class CacheAspect {
         } catch (InstantiationException | IllegalAccessException e) {
             log.error("复制本地缓存结果异常:", e);
             throw new CacheException("复制结果异常:", e);
-        }
-    }
-
-    /**
-     * 清除缓存结果集后置逻辑
-     */
-    @After("cacheEvictAspect()")
-    public void cacheEvict(JoinPoint joinPoint) {
-        log.info("cacheEvict_enabled={}", properties.getEnabled());
-        if (!properties.getEnabled()) {
-            return;
-        }
-        String redisKey = null;
-        try {
-            Method method = getMethod(joinPoint);
-            CacheEvict annotation = getCacheEvictAnnotation(method);
-            Assert.notNull(annotation, "moon.cache.aspect.CacheAspect.cacheEvict() 获取注解失败！");
-            String domain = annotation.domain();
-            boolean evictAfterTranCommit = annotation.evictAfterTranCommit();
-            redisKey = getCacheEvictKey(annotation, joinPoint);
-
-            // 如果事务后清除，且当前事务开启
-            if (evictAfterTranCommit && TransactionSynchronizationManager.isSynchronizationActive()) {
-                final String finalRedisKey = redisKey;
-                final String finalDomain = domain;
-                // 为当前线程注册一个新的事务同步，通常由资源管理代码调用。
-                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
-                    @Override
-                    public void afterCommit() {
-                        log.debug("[redisCache delete] ,cacheKey:{}", finalRedisKey);
-                        redisCacheProxy.delete(finalDomain, finalRedisKey);
-                    }
-                });
-            } else {
-                log.debug("[redisCache delete] ,cacheKey:{}", redisKey);
-                redisCacheProxy.delete(domain, redisKey);
-            }
-        } catch (Exception e) {
-            log.error("CacheAspect清除缓存异常, cacheKey:{}", redisKey, e);
         }
     }
 
@@ -302,14 +293,17 @@ public class CacheAspect {
      * @return 表达式执行结果集
      */
     private String[] executeTemplate(String[] template, JoinPoint joinPoint) {
-        //获取方法所有参数名称
+        // 获取方法所有参数名称
         String methodLongName = joinPoint.getSignature().toLongString();
+        // 获取被注解的方法
+        MethodSignature methodSignature = (MethodSignature) joinPoint.getSignature();
+        Method method = methodSignature.getMethod();
         // 参数名称数组
-        Function<String, String[]> function = o -> discoverer.getParameterNames(getMethod(joinPoint));
+        Function<String, String[]> function = o -> discoverer.getParameterNames(method);
         String[] parameterNames = parameterNamesCache.computeIfAbsent(methodLongName, function);
         if (ArrayUtils.isEmpty(parameterNames)) {
-            log.error("找不到方法对应的参数列表");
-            throw new CacheException("找不到方法对应的参数列表");
+            log.error("找不到方法对应的参数名称列表");
+            throw new CacheException("找不到方法对应的参数名称列表");
         }
         // SpEL 的标准计算上下文
         StandardEvaluationContext context = new StandardEvaluationContext();
@@ -332,28 +326,6 @@ public class CacheAspect {
     }
 
     /**
-     * 获取当前执行的方法
-     *
-     * @param joinPoint 连接点
-     * @return 当前执行的方法
-     */
-    private Method getMethod(JoinPoint joinPoint) {
-        String methodLongName = joinPoint.getSignature().toLongString();
-        // 方法名称参数已缓存，则直接从缓存获取，反之则解析名称参数，并加入缓存
-        String methodNameAndParam = methodAndParamCache.computeIfAbsent(methodLongName, o -> AspectUtils.getMethodNameAndParams(methodLongName));
-        // 获取切点所在类的全部方法列表
-        Method[] methods = joinPoint.getTarget().getClass().getMethods();
-        for (Method method : methods) {
-            String targetMethodLongName = method.toString();
-            String targetMethodAndParam = methodAndParamCache.computeIfAbsent(targetMethodLongName, o -> AspectUtils.getMethodNameAndParams(targetMethodLongName));
-            if (StringUtils.equals(methodNameAndParam, targetMethodAndParam)) {
-                return method;
-            }
-        }
-        throw new CacheException("找不到连接点的方法");
-    }
-
-    /**
      * 获取Cache注解
      *
      * @param method 切面方法
@@ -368,7 +340,6 @@ public class CacheAspect {
         }
     }
 
-
     /**
      * 获取CacheEvict注解
      *
@@ -382,17 +353,5 @@ public class CacheAspect {
             log.error("getCacheEvictAnnotation from method ex:", e);
             throw new CacheException("getCacheEvictAnnotation from method fail");
         }
-    }
-
-    /**
-     * 获取方法是的CacheEvict注解
-     *
-     * @return
-     */
-    private List<CacheEvict> getCacheEvictAnnotations(Method method) {
-        return Arrays.stream(method.getAnnotations())
-                .filter(CacheEvict.class::isInstance)
-                .map(CacheEvict.class::cast)
-                .collect(Collectors.toList());
     }
 }
