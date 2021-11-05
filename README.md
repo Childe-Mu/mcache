@@ -1,37 +1,26 @@
 # mcache
 
 #### 介绍
-二级缓存，caffeine+redis
 
-#### 软件架构
-软件架构说明
+mcache是一个整合caffeine+redis的二级缓存工具，对于读请求频繁访问的场景，有巨大的性能提升（同架构的已经经过生产实践中）。
 
+#### 特性
 
-#### 安装教程
+1. 一级缓存采用Caffeine Cache，二级缓存采用redis。
+2. 采用Spring AOP + Annotation 将缓存管理与业务逻辑进行解耦。
+3. 采用懒加载机制 + 防止缓存穿透。
+4. 加入redis异常重试降级，以及自动恢复功能。
+5. 本地缓存结果copy，避免直接修改本地缓存引发问题。
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+#### 缓存一致性问题
+
+1. 是以持久化数据库中的数据为标准，redis只作为缓存使用（不开启备份，出现服务宕机级别问题，所有数据都从数据库重新读取缓存，保证数据一致性）。
+2. 先更新数据库，然后删除缓存，本地缓存通过使用消息中间件广播通知删除。
+3. 如果删除redis缓存失败，会进行redis异常重试，超过重试次数就会触发降级，直连数据库。（已有的生产实践中只出现过机房出现事故，zk、redis等服务全部停摆，这个时候重试并没有什么用）
+4. 如果删除本地缓存失败，则需要等待缓存失效。（本地缓存ttl默认设置5分钟，生产实践中，影响不大，在可以接受的范围）
 
 #### 使用说明
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
-
-#### 参与贡献
-
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
-
-
-#### 特技
-
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  Gitee 官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解 Gitee 上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是 Gitee 最有价值开源项目，是综合评定出的优秀开源项目
-5.  Gitee 官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  Gitee 封面人物是一档用来展示 Gitee 会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+1. xxxx
+2. xxxx
+3. xxxx

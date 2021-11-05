@@ -85,7 +85,7 @@ public class CacheProperties {
     /**
      * L2缓存-缓存穿透限流每秒许可数，默认值5
      */
-    @Value("${${moon.application.name}.mcache.through.limit.permits.persecond:5}")
+    @Value("${${moon.application.name}.mcache.through.limit.permits.per.second:5}")
     private Integer throughLimitPermitsPerSecond;
 
     /**
