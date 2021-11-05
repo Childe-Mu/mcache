@@ -59,3 +59,8 @@ public class Test {
    }
 }
 ```
+
+#### TODO
+1. 缓存Tamplate操作方式
+2. 本地缓存批量获取
+3. redis缓存批量获取
